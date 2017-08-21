@@ -371,10 +371,10 @@ func CompileDispatch()
     call extend(cflags, ExtraCFLAGS(expand('%:p')))
     let filters = {
     \    'labels': v:true,
-    \    'directives': v:true,
-    \    'commentOnly': v:true,
+    \    'directives': g:ce_strip_directives ? v:true : v:false,
+    \    'commentOnly': (!g:ce_strip_comments) ? v:false : v:true,
     \    'trim': v:true,
-    \    'intel': v:false,
+    \    'intel': (g:ce_asm_fmt ==? 'intel') ? v:true : v:false,
     \}
     let options = {
     \    'userArguments': join(cflags, ' '),
