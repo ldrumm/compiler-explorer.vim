@@ -36,7 +36,9 @@ let g:ce_host = get(g:, 'ce_host', 'localhost')
 " TCP listen port for compiler explorer
 let g:ce_port = get(g:, 'ce_port', 10240)
 " TODO
-let g:ce_highlight_colors = get(g:, 'ce_highlight_colors', 1)
+let g:ce_enable_higlights = get(g:, 'ce_enable_higlights', 1)
+let g:ce_highlight_colors = get(g:, 'ce_highlight_colors', range(16))
+
 " Languages to compile
 let g:ce_enabled_languages = get(g:, 'ce_enabled_languages', ['c', 'c++'])
 
@@ -289,19 +291,35 @@ func UpdateAsmView(data)
     endif
     let data = a:data.json
     let lines = {}
-    for lineinfo in data['asm']
-        if (!has_key(lineinfo, 'source')) ||
-                    \(type(lineinfo['source']) == type(v:null))
-            continue
-        endif
-        call ch_log(json_encode(lines))
-        let lines[lineinfo['source']['line']] = lineinfo['text']
+    let n_colors = 16
+    let color_ids = map(g:ce_highlight_colors, {d -> [d, 'ce_highlight_ref_' . d]})
+
+    for [color_id, group_name] in color_ids
+        exe printf('highlight %s ctermbg=%d', group_name, color_id)
     endfor
-    let n_asm_lines = max(keys(lines))
-    let asm_lines = repeat([''], n_asm_lines)
-    for idx in keys(lines)
-        call insert(asm_lines, lines[idx], idx)
-    endfor
+    let colormap = {'src': {}, 'asm': {}}
+    let asm_line = 0
+    let color_idx = 0
+    let asm_lines = repeat([''], len(data['asm']))
+    let lastsrc = 0
+    if g:ce_enable_higlights
+        for lineinfo in data['asm']
+            call ch_log(json_encode(lineinfo))
+            if (has_key(lineinfo, 'source')) &&
+                        \(type(lineinfo['source']) != type(v:null))
+                let srcline = lineinfo['source']['line']
+                if lastsrc != srcline
+                    let lastsrc = srcline
+                    let color_idx += 1
+                endif
+                let [_, colorname] = color_ids[color_idx % n_colors]
+                let colormap['src'][srcline] = colorname
+                let colormap['asm'][asm_line] = colorname
+            endif
+            let asm_lines[asm_line] = lineinfo['text']
+            let asm_line += 1
+        endfor
+    endif
 
     " This is a total hack until I work out how to write into another buffer
     " cleanly
@@ -309,7 +327,17 @@ func UpdateAsmView(data)
     if (!s:ce_asm_view) || oldwin ==? s:ce_asm_view
         return
     endif
+    if g:ce_enable_higlights
+        for [line, group_name] in items(colormap['src'])
+            call matchaddpos(group_name, [0+line])
+        endfor
+    endif
     call win_gotoid(s:ce_asm_view)
+    if g:ce_enable_higlights
+        for [line, group_name] in items(colormap['asm'])
+            call matchaddpos(group_name, [1+line])
+        endfor
+    endif
     setlocal modifiable noreadonly
     call execute(':%delete _')
     call setline(1, asm_lines)
