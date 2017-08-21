@@ -1,7 +1,6 @@
 # compiler-explorer.vim
 
-## Vim integration for Matt Godbolt's excellent [Compiler
-Explorer](https://gcc.godbolt.org)
+## Vim integration for Matt Godbolt's [Compiler Explorer](https://gcc.godbolt.org)
 
 ### *WARNING*: This project is a pre-alpha prototype written as a way to learn viml.
 ### Don't use it for your precious.
@@ -15,7 +14,7 @@ imagine in the name of performance.
    [pathogen](https://github.com/tpope/pathogen.vim):
    ```bash
     cd ~/.vim/bundle
-    git clone https://github.com/ldrumm/compiler-explorer.vim`
+    git clone https://github.com/ldrumm/compiler-explorer.vim
     ```
 2. Install Compiler Explorer proper and add the path to your vim config (adjust
    paths to taste):
@@ -30,3 +29,6 @@ imagine in the name of performance.
     " Toggle display of the compiler-explorer assembly pane with f3
     map <f3> :call CEToggleAsmView()<CR>
     EOF
+
+Note. This plugin require channel, job and json supported introduced with vim8
+as well as any dependencies required by compiler-explorer proper.
