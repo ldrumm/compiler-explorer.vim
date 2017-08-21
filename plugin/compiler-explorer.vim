@@ -270,13 +270,14 @@ endfunc
 
 
 func InitAsmView()
-    let oldwin = bufnr('%')
+    let oldwin = win_getid()
     vertical rightb split [AsmView]
     setlocal readonly nowrap syn=asm ft=asm
     setlocal buftype=nofile noswapfile bufhidden=delete
     " Switch back to the old window
-    let newwin = bufnr('%')
-    exe oldwin . "wincmd w"
+    let newwin = win_getid()
+    call assert_false(oldwin == newwin)
+    call win_gotoid(oldwin)
     return newwin
 endfunc
 
@@ -304,17 +305,17 @@ func UpdateAsmView(data)
 
     " This is a total hack until I work out how to write into another buffer
     " cleanly
-    let oldwin = bufnr('%')
+    let oldwin = win_getid()
     if (!s:ce_asm_view) || oldwin ==? s:ce_asm_view
         return
     endif
-    exe s:ce_asm_view . "wincmd w"
+    call win_gotoid(s:ce_asm_view)
     setlocal modifiable noreadonly
     call execute(':%delete _')
     call setline(1, asm_lines)
     setlocal nomodifiable readonly
     " Switch back to the old window
-    exe oldwin . "wincmd w"
+    call win_gotoid(oldwin)
 endfunc
 
 
