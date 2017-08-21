@@ -14,7 +14,8 @@ imagine in the name of performance.
 1. Install the plugin as usual. For example, with
    [pathogen](https://github.com/tpope/pathogen.vim):
    ```bash
-    `cd ~/.vim/bundle && git clone https://github.com/ldrumm/compiler-explorer.vim`
+    cd ~/.vim/bundle
+    git clone https://github.com/ldrumm/compiler-explorer.vim`
     ```
 2. Install Compiler Explorer proper and add the path to your vim config (adjust
    paths to taste):
@@ -27,5 +28,5 @@ imagine in the name of performance.
     " [compiler-explorer.vim](https://github.com/ldrumm/compiler-explorer.vim
     let g:ce_makefile = '$CE/Makefile'
     " Toggle display of the compiler-explorer assembly pane with f3
-    map <f3> call CEToggleAsmView()<CR>
+    map <f3> :call CEToggleAsmView()<CR>
     EOF
