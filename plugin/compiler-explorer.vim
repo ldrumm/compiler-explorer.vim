@@ -340,6 +340,9 @@ endfunc
 
 func CompileDispatch()
     let ce_lang = tolower(&filetype)
+    if ce_lang == 'cpp'
+        let ce_lang = 'c++'
+    endif
     let std = g:ce_language_standard[ce_lang]
     let compiler = HttpSimpleQuotePath(g:ce_enabled_compilers[ce_lang][0])
     let opt = g:ce_optlevel[ce_lang]
