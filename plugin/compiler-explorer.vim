@@ -6,7 +6,7 @@
 " Source repository: https://github.com/ldrumm/compiler-explorer.vim
 
 " Initialization {{{
-if exists('g:loaded_ce') || &cp
+if exists('g:loaded_ce') || &compatible
   finish
 else
     let g:loaded_ce = 1
@@ -68,7 +68,7 @@ endfunc
 
 
 func LogStdout(channel, msg)
-    if a:msg =~ 'Listening on http://'
+    if a:msg =~? 'Listening on http://'
         " call InitAsmView()
     endif
     call LogHandler(a:channel, a:msg, 'stdout')
@@ -78,11 +78,6 @@ endfunc
 
 func LogStderr(channel, msg)
     call LogHandler(a:channel, a:msg, 'stderr')
-endfunc
-
-
-func ChannelHandler(channel, msg)
-    echo "got a message" . a:msg
 endfunc
 
 
@@ -124,7 +119,6 @@ func HttpParseChunkedResponse(body)
     call ch_log(chunk)
     call ch_log("-------------------endchunk--------------------")
         call add(chunks, chunk)
-        call ch_log("loop: ". loop)
         let loop += 1
     endwhile
     let body = join(chunks, '')
@@ -280,8 +274,6 @@ func InitAsmView()
     vertical rightb split [AsmView]
     setlocal readonly nowrap syn=asm ft=asm
     setlocal buftype=nofile noswapfile bufhidden=delete
-    au WinLeave <buffer> exe "normal" ":%!python -m json.tool<CR>"
-
     " Switch back to the old window
     let newwin = bufnr('%')
     exe oldwin . "wincmd w"
