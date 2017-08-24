@@ -27,7 +27,7 @@ imagine in the name of performance.
     " [compiler-explorer.vim](https://github.com/ldrumm/compiler-explorer.vim
     let g:ce_makefile = '$CE/Makefile'
     " Toggle display of the compiler-explorer assembly pane with f3
-    map <f3> :call CEToggleAsmView()<CR>
+    map <f3> :CEToggleAsmView<CR>
     EOF
 
 Note. This plugin require channel, job and json supported introduced with vim8
