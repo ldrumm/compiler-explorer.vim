@@ -37,7 +37,7 @@ let g:ce_host = get(g:, 'ce_host', 'localhost')
 let g:ce_port = get(g:, 'ce_port', 10240)
 " TODO
 let g:ce_enable_higlights = get(g:, 'ce_enable_higlights', 1)
-let g:ce_highlight_colors = get(g:, 'ce_highlight_colors', range(16))
+let g:ce_highlight_colors = get(g:, 'ce_highlight_colors', range(200, 255, 5))
 
 " Languages to compile
 let g:ce_enabled_languages = get(g:, 'ce_enabled_languages', ['c', 'c++'])
@@ -292,7 +292,8 @@ func UpdateAsmView(data)
     let data = a:data.json
     let lines = {}
     let n_colors = 16
-    let color_ids = map(g:ce_highlight_colors, {d -> [d, 'ce_highlight_ref_' . d]})
+    let color_ids = map(g:ce_highlight_colors,
+                \{idx, val -> [val, 'ce_highlight_ref_' . idx]})
 
     for [color_id, group_name] in color_ids
         exe printf('highlight %s ctermbg=%d', group_name, color_id)
