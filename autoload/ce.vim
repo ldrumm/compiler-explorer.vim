@@ -279,8 +279,25 @@ endfunc
 
 
 func s:ExtraCFLAGS(source)
-    " TODO find compile_commands.json / snatch from Youcompleteme
-    return []
+    " TODO snatch CFLAGS from Youcompleteme if it is available
+    if (!g:ce_use_ycm_extra_conf) || !has('pythonx')
+        return []
+    endif
+    if !pyxeval('"ycm_state" in dir()')
+        return []
+    end
+
+    " Look away now...
+    " I don't know a better way to do this, as Youcompleteme does not expose
+    " a public API to query this info:
+    let flags = pyxeval('eval(list(filter(lambda s: "Flags: " in s, ycm_state.DebugInfo().split("\n")))[0].strip().lstrip("Flags:"))')
+    " Remove the compiler name
+    call remove(flags, 0)
+    " Make sure include paths include the directory of the file itself. This
+    " is important as Compiler Explorer just gets text, not a file on the
+    " filesystem
+    call insert(flags, '-I' . expand('%:p:h'))
+    return flags
 endfunc
 
 
