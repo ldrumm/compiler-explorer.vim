@@ -302,21 +302,33 @@ func s:CompileDispatchResponseHandler(data)
     let colormap = {'src': {}, 'asm': {}}
     let asm_line = 0
     let color_idx = 0
-    let asm_lines = repeat([''], len(data['asm']))
     let lastsrc = 0
-    if g:ce_enable_higlights
+    if data.code == 0
+        let asm_lines = repeat([''], len(data.asm))
+    else
+        let Gettext = {k, v -> v.text}
+        let asm_lines = map(copy(data.asm), Gettext)
+        call add(asm_lines, "stderr:")
+        call extend(asm_lines, map(copy(data.stderr), Gettext))
+        call add(asm_lines, "stdout:")
+        call extend(asm_lines, map(copy(data.stdout), Gettext))
+    endif
+
+    if data.code == 0
         for lineinfo in data['asm']
-            if (has_key(lineinfo, 'source')) &&
-                        \(type(lineinfo['source']) != type(v:null))
-                let srcline = lineinfo['source']['line']
-                if lastsrc != srcline
-                    let lastsrc = srcline
-                    let color_idx += 1
+            if g:ce_enable_higlights
+                if (has_key(lineinfo, 'source')) &&
+                            \(type(lineinfo['source']) != type(v:null))
+                    let srcline = lineinfo['source']['line']
+                    if lastsrc != srcline
+                        let lastsrc = srcline
+                        let color_idx += 1
+                    endif
+                    let [n_colors, color_ids] = s:GetColors()
+                    let [_, colorname] = color_ids[color_idx % n_colors]
+                    let colormap['src'][srcline] = colorname
+                    let colormap['asm'][asm_line] = colorname
                 endif
-                let [n_colors, color_ids] = s:GetColors()
-                let [_, colorname] = color_ids[color_idx % n_colors]
-                let colormap['src'][srcline] = colorname
-                let colormap['asm'][asm_line] = colorname
             endif
             let asm_lines[asm_line] = lineinfo['text']
             let asm_line += 1
