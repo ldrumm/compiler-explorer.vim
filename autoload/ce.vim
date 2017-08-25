@@ -1,5 +1,8 @@
-let s:ce_asm_view = 0
+let s:ce_asm_bufnr = ''
+let s:ce_src_bufnr = ''
+let s:ce_src_view = ''
 let s:channel = 0
+let s:colors_init = 0
 
 
 func s:LogHandler(channel, msg, fd)
@@ -197,32 +200,98 @@ endfunc
 
 
 func s:InitAsmView()
-    let oldwin = win_getid()
+    let oldbuf = bufnr('%')
+    let oldwin = bufwinid(oldbuf)
     vertical rightb split [AsmView]
     setlocal readonly nowrap syn=asm ft=asm
     setlocal buftype=nofile noswapfile bufhidden=delete
     " Switch back to the old window
-    let newwin = win_getid()
+    let newbuf = bufnr('%')
+    let newwin = bufwinid(newbuf)
     call assert_false(oldwin == newwin)
     call win_gotoid(oldwin)
-    return newwin
+    return newbuf
 endfunc
 
 
-func s:UpdateAsmView(data)
+func s:GetColors()
+    if s:colors_init
+        return [s:n_colors, s:color_ids]
+    endif
+    let s:colors_init = 1
+
+    let s:n_colors = len(g:ce_highlight_colors)
+    let s:color_ids = copy(g:ce_highlight_colors)
+    call map(
+    \   s:color_ids,
+    \   {idx, val -> [val, 'ce_highlight_ref_' . idx]})
+
+    for [color_id, group_name] in s:color_ids
+        exe printf('highlight %s ctermbg=%d', group_name, color_id)
+    endfor
+    return [s:n_colors, s:color_ids]
+endfunc
+
+
+func s:SyncBuffers(src_buf, asm_buf, asm_lines, colormap)
+    " Actually do the update
+    " This is a total hack until I work out how to write into another buffer
+    " cleanly
+    let oldwin = bufwinid(bufnr('%'))
+    let srcwin = bufwinid(a:src_buf)
+    let asmwin = bufwinid(a:asm_buf)
+
+    if oldwin != srcwin
+        if win_gotoid(srcwin) == 0
+            echoe "Unable to switch to source window"
+            return
+        endif
+    endif
+
+    if g:ce_enable_higlights
+    "   map(b:ce_colormatch_ids, matchdelete)
+    "   b:ce_colormatch_ids = []
+        for [line, group_name] in items(a:colormap['src'])
+            call matchaddpos(group_name, [[0+line, 1]])
+        endfor
+    endif
+
+    if win_gotoid(asmwin) == 0
+        echoe "Unable to switch to asm window"
+        call win_gotoid(oldwin)
+        return
+    endif
+    if g:ce_enable_higlights
+    "   map(b:ce_colormatch_ids, matchdelete)
+    "   b:ce_colormatch_ids = []
+        for [line, group_name] in items(a:colormap['asm'])
+            call matchaddpos(group_name, [[1+line, 1]])
+        endfor
+    endif
+
+    " save the previous view into the buffer
+    let oldview = winsaveview()
+    " temporarily allow writing into the buffer
+    setlocal modifiable noreadonly
+    call execute(':%delete _')
+    call setline(1, a:asm_lines)
+    setlocal nomodifiable readonly
+    " Restore the cursor and scroll position
+    call winrestview(oldview)
+    " Switch back to the old window
+    if win_gotoid(oldwin) == 0
+        echoe "Window buffer unexpectedly closed"
+    endif
+endfunc
+
+
+func s:CompileDispatchResponseHandler(data)
     if a:data.status != 200
         echoe "Request failed"
         return
     endif
     let data = a:data.json
     let lines = {}
-    let n_colors = 16
-    let color_ids = map(g:ce_highlight_colors,
-                \{idx, val -> [val, 'ce_highlight_ref_' . idx]})
-
-    for [color_id, group_name] in color_ids
-        exe printf('highlight %s ctermbg=%d', group_name, color_id)
-    endfor
     let colormap = {'src': {}, 'asm': {}}
     let asm_line = 0
     let color_idx = 0
@@ -237,6 +306,7 @@ func s:UpdateAsmView(data)
                     let lastsrc = srcline
                     let color_idx += 1
                 endif
+                let [n_colors, color_ids] = s:GetColors()
                 let [_, colorname] = color_ids[color_idx % n_colors]
                 let colormap['src'][srcline] = colorname
                 let colormap['asm'][asm_line] = colorname
@@ -245,36 +315,13 @@ func s:UpdateAsmView(data)
             let asm_line += 1
         endfor
     endif
-
-    " This is a total hack until I work out how to write into another buffer
-    " cleanly
-    let oldwin = win_getid()
-    if (!s:ce_asm_view) || oldwin ==? s:ce_asm_view
-        return
-    endif
-    if g:ce_enable_higlights
-        for [line, group_name] in items(colormap['src'])
-            call matchaddpos(group_name, [[0+line, 1]])
-        endfor
-    endif
-    call win_gotoid(s:ce_asm_view)
-    if g:ce_enable_higlights
-        for [line, group_name] in items(colormap['asm'])
-            call matchaddpos(group_name, [[1+line, 1]])
-        endfor
-    endif
-    setlocal modifiable noreadonly
-    call execute(':%delete _')
-    call setline(1, asm_lines)
-    setlocal nomodifiable readonly
-    " Switch back to the old window
-    call win_gotoid(oldwin)
+    call s:SyncBuffers(s:ce_src_bufnr, s:ce_asm_bufnr, asm_lines, colormap)
 endfunc
 
 
 func s:KillAsmView()
-    exe s:ce_asm_view . "wincmd q"
-    let s:ce_asm_view = 0
+    exe s:ce_asm_bufnr . "wincmd q"
+    let s:ce_asm_bufnr = ''
 endfunc
 
 
@@ -337,7 +384,7 @@ func s:CompileDispatch()
     \        'accept-encoding': '',
     \    },
     \    json_encode(request),
-    \   's:UpdateAsmView'
+    \   's:CompileDispatchResponseHandler'
     \)
 endfunc
 
@@ -358,21 +405,26 @@ endfunc
 
 
 func s:InitChannel()
+    if s:channel_init_failcount > 100
+        echoe "permantly failed to connect to server"
+    endif
     if type(s:channel) == type(0)
             \|| ch_status(s:channel) == 'fail'
             \|| ch_status(s:channel) == 'closed'
-        let s:channel = ch_open(g:ce_host . ":" . g:ce_port, {'mode': 'raw'})
+        let s:channel = ch_open(g:ce_host . ':' . g:ce_port, {'mode': 'raw'})
         if ch_status(s:channel) == 'fail'
-            call s:StartServer()
+            call timer_start(500, {_ -> s:StartServer()})
         endif
     endif
+    let s:channel_init_failcount = 0
     return s:channel
 endfunc
 
 
 func ce#toggle_asm_view()
-    if (!exists('s:ce_asm_view')) || !s:ce_asm_view
-        let s:ce_asm_view = s:InitAsmView()
+    if s:ce_asm_bufnr ==# ''
+        let s:ce_src_bufnr = bufnr('%')
+        let s:ce_asm_bufnr = s:InitAsmView()
         call s:CompileDispatch()
         " FIXME This is really noisy. Even when doing nothing this fires an
         " HTTP request every couple of seconds, which is going to trash
