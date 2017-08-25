@@ -345,7 +345,6 @@ endfunc
 
 
 func s:ExtraCFLAGS(source)
-    " TODO snatch CFLAGS from Youcompleteme if it is available
     if (!g:ce_use_ycm_extra_conf) || !has('pythonx')
         return []
     endif
@@ -356,46 +355,25 @@ func s:ExtraCFLAGS(source)
     " Look away now...
     " I don't know a better way to do this, as Youcompleteme does not expose
     " a public API to query this info:
-    let flags = pyxeval('eval(list(filter(lambda s: "Flags: " in s, ycm_state.DebugInfo().split("\n")))[0].strip().lstrip("Flags:"))')
+    " TODO cache this request and subsequent filtering
+    let l:script =
+    \   'eval(list(filter(lambda s: "Flags: " in s, ycm_state.DebugInfo()' .
+    \   '.split("\n")))[0].strip().lstrip("Flags:"))'
+    let l:flags = pyxeval(l:script)
     " Remove the compiler name
-    call remove(flags, 0)
-
-    let l:index = 0
-    for l:flag in flags
-      if l:flag =~# '^-resource-dir=.*'
-        call remove(flags, l:index)
-        break
-      endif
-      let l:index += 1
-    endfor
-    unlet l:index
-
-    let l:index = 0
-    for l:flag in flags
-      if l:flag =~# '^-fdiagnostics-color=.*'
-        call remove(flags, l:index)
-        break
-      endif
-      let l:index += 1
-    endfor
-    unlet l:index
-
-    let l:index = 0
-    for l:flag in flags
-      if l:flag =~# '^-fspell-checking'
-        call remove(flags, l:index)
-        break
-      endif
-      let l:index += 1
-    endfor
-    unlet l:index
-
-    " Make sure include paths include the directory of the file itself. This
-    " is important as Compiler Explorer just gets text, not a file on the
-    " filesystem
-    call insert(flags, '-I' . expand('%:p:h'))
-
-    return flags
+    call remove(l:flags, 0)
+    let l:badflags = [
+    \    '-resource-dir=.*',
+    \   '-fdiagnostics-color=.*',
+    \   '-fspell-checking',
+    \   '-fPIC',
+    \   '-g(gdb)?\d',
+    \   '-std=.*',
+    \]
+    let l:badpattern =
+    \   printf('\m\v^(%s)$', join(map(l:badflags, {_, s -> '('. s . ')'}), '|'))
+    call filter(l:flags, {_, s -> s !~ l:badpattern})
+    return l:flags
 endfunc
 
 
@@ -408,6 +386,10 @@ func s:CompileDispatch()
     let compiler = s:HttpSimpleQuotePath(g:ce_enabled_compilers[ce_lang][0])
     let opt = g:ce_optlevel[ce_lang]
     let cflags = ['-x' . ce_lang, '-std=' . std, '-O' . opt]
+    " Make sure include paths include the directory of the file itself. This
+    " is important as Compiler Explorer just gets text, not a file on the
+    " filesystem
+    call insert(cflags, '-I' . expand('%:p:h'))
     call extend(cflags, s:ExtraCFLAGS(expand('%:p')))
     let filters = {
     \    'labels': v:true,
