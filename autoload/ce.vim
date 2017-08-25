@@ -34,9 +34,6 @@ func s:HttpParseChunkedResponse(body)
     let start_idx = 0
     let loop = 0
     while 1
-"   call ch_log("-------------------body--------------------")
-"   call ch_log(a:body[start_idx:])
-"   call ch_log("-------------------endbody--------------------")
         let pat = matchlist(a:body[start_idx:], '^\([0-9a-fA-f]\+\)')
         if len(pat) == 0
             call ch_log(join(pat, ","))
@@ -51,9 +48,6 @@ func s:HttpParseChunkedResponse(body)
         let end_idx = start_idx + chunk_len
         let chunk = a:body[start_idx:end_idx]
         let start_idx = end_idx + 2
-"   call ch_log("-------------------startchunk--------------------")
-"   call ch_log(chunk)
-"   call ch_log("-------------------endchunk--------------------")
         call add(chunks, chunk)
         let loop += 1
     endwhile
@@ -194,10 +188,6 @@ func s:HttpRequest(channel, path, method, headers, data, callback)
     if a:data || len(a:data)
         let request .= a:data
     endif
-"   call ch_log('-------------HTTP request------------')
-"   call ch_log(request)
-"   call ch_log('-------------end HTTP request------------')
-"   let Callback = function(a:callback)
     call ch_sendraw(
     \   s:channel,
     \   request,
@@ -240,7 +230,6 @@ func s:UpdateAsmView(data)
     let lastsrc = 0
     if g:ce_enable_higlights
         for lineinfo in data['asm']
-            call ch_log(json_encode(lineinfo))
             if (has_key(lineinfo, 'source')) &&
                         \(type(lineinfo['source']) != type(v:null))
                 let srcline = lineinfo['source']['line']
