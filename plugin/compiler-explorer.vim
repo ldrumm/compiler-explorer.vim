@@ -51,11 +51,11 @@ let g:ce_language_standard =
     \get(g:, 'ce_language_standard', {'c': 'c99', 'c++': 'c++11'})
 
 " Default optimization level
-let g:ce_optlevel = get(g:, 'g:ce_optlevel', {'c': 0, 'c++': 0})
+let g:ce_optlevel = get(g:, 'ce_optlevel', {'c': 0, 'c++': 0})
 
 " If [YouCompleteMe](https://github.com/Valloric/YouCompleteMe) is installed,
 " use it for cflags
-let g:ce_use_ycm_extra_conf = get(g:, 'g:ce_use_ycm_extra_conf', 0)
+let g:ce_use_ycm_extra_conf = get(g:, 'ce_use_ycm_extra_conf', 0)
 
 " Anyone who prefers intel style syntax is a pervert who should rethink all
 " they know. However, we should also be mindful that perverts are people too,
@@ -63,12 +63,12 @@ let g:ce_use_ycm_extra_conf = get(g:, 'g:ce_use_ycm_extra_conf', 0)
 let g:ce_asm_fmt = 'att'
 
 " remove compiler-generated comments from the output
-let g:ce_strip_comments = 1
+let g:ce_strip_comments = get(g:, 'ce_strip_comments', 1)
 
 " assemble then dissasemble, rather than just compile
 let g:ce_disasm = 0
 
 " Remove useless assembler directives
-let g:ce_strip_directives = 1
+let g:ce_strip_directives = get(g:, 'ce_strip_directives', 1)
 
 command! CEToggleAsmView :call ce#toggle_asm_view()

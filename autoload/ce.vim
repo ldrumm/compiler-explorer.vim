@@ -340,10 +340,42 @@ func s:ExtraCFLAGS(source)
     let flags = pyxeval('eval(list(filter(lambda s: "Flags: " in s, ycm_state.DebugInfo().split("\n")))[0].strip().lstrip("Flags:"))')
     " Remove the compiler name
     call remove(flags, 0)
+
+    let l:index = 0
+    for l:flag in flags
+      if l:flag =~# '^-resource-dir=.*'
+        call remove(flags, l:index)
+        break
+      endif
+      let l:index += 1
+    endfor
+    unlet l:index
+
+    let l:index = 0
+    for l:flag in flags
+      if l:flag =~# '^-fdiagnostics-color=.*'
+        call remove(flags, l:index)
+        break
+      endif
+      let l:index += 1
+    endfor
+    unlet l:index
+
+    let l:index = 0
+    for l:flag in flags
+      if l:flag =~# '^-fspell-checking'
+        call remove(flags, l:index)
+        break
+      endif
+      let l:index += 1
+    endfor
+    unlet l:index
+
     " Make sure include paths include the directory of the file itself. This
     " is important as Compiler Explorer just gets text, not a file on the
     " filesystem
     call insert(flags, '-I' . expand('%:p:h'))
+
     return flags
 endfunc
 
@@ -405,18 +437,14 @@ endfunc
 
 
 func s:InitChannel()
-    if s:channel_init_failcount > 100
-        echoe "permantly failed to connect to server"
-    endif
     if type(s:channel) == type(0)
             \|| ch_status(s:channel) == 'fail'
             \|| ch_status(s:channel) == 'closed'
         let s:channel = ch_open(g:ce_host . ':' . g:ce_port, {'mode': 'raw'})
         if ch_status(s:channel) == 'fail'
-            call timer_start(500, {_ -> s:StartServer()})
+            call s:StartServer()
         endif
     endif
-    let s:channel_init_failcount = 0
     return s:channel
 endfunc
 
