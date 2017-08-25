@@ -2,26 +2,22 @@ let s:ce_asm_view = 0
 let s:channel = 0
 
 
-func LogHandler(channel, msg, fd)
+func s:LogHandler(channel, msg, fd)
     call ch_log(a:fd . ": " . a:msg)
 endfunc
 
 
-func LogStdout(channel, msg)
-    if a:msg =~? 'Listening on http://'
-        " call InitAsmView()
-    endif
-    call LogHandler(a:channel, a:msg, 'stdout')
-
+func s:LogStdout(channel, msg)
+    call s:LogHandler(a:channel, a:msg, 'stdout')
 endfunc
 
 
-func LogStderr(channel, msg)
-    call LogHandler(a:channel, a:msg, 'stderr')
+func s:LogStderr(channel, msg)
+    call s:LogHandler(a:channel, a:msg, 'stderr')
 endfunc
 
 
-func HttpSimpleQuotePath(s)
+func s:HttpSimpleQuotePath(s)
     " do the bare minimum substitution to get /usr/bin/g++ to work in a URL
     " FIXME at some point someone will have a compiler on a strange path, and
     " we should properly quote this in all generality
@@ -33,7 +29,7 @@ func HttpSimpleQuotePath(s)
 endfunc
 
 
-func HttpParseChunkedResponse(body)
+func s:HttpParseChunkedResponse(body)
     let chunks = []
     let start_idx = 0
     let loop = 0
@@ -66,7 +62,7 @@ func HttpParseChunkedResponse(body)
 endfunc
 
 
-func HttpParseResponse(response)
+func s:HttpParseResponse(response)
     " separate Response header from the body
     let body_start = match(a:response, "\r\n\r\n")
     if body_start == -1
@@ -106,7 +102,7 @@ func HttpParseResponse(response)
     if !has_key(headers, 'content-length')
         if has_key(headers, 'transfer-encoding')
                     \&& headers['transfer-encoding'] =~ 'chunked'
-            let body = HttpParseChunkedResponse(body)
+            let body = s:HttpParseChunkedResponse(body)
         endif
     elseif !(len(body) == headers['content-length'])
         echoe "invalid content length"
@@ -121,7 +117,7 @@ func HttpParseResponse(response)
 endfunc
 
 
-func HttpResponseHandler(channel, msg, callback)
+func s:HttpResponseHandler(channel, msg, callback)
     let parts = [a:msg]
     while 1
         let part = ch_readraw(a:channel, {'timeout': g:ce_http_recv_timeout})
@@ -131,12 +127,12 @@ func HttpResponseHandler(channel, msg, callback)
         call add(parts, part)
     endwhile
     let output = join(parts, '')
-    let data = HttpParseResponse(output)
+    let data = s:HttpParseResponse(output)
     return function(a:callback)(data)
 endfunc
 
 
-func HttpSerializeHeader(key, val, ...)
+func s:HttpSerializeHeader(key, val, ...)
     " hack to make a http header from a [k, v] pair
     " single spaces are allowed, and replaced with a single dash
     " words are then capitalised. If value is a list, it is serialized as
@@ -175,7 +171,7 @@ func HttpSerializeHeader(key, val, ...)
 endfunc
 
 
-func HttpRequest(channel, path, method, headers, data, callback)
+func s:HttpRequest(channel, path, method, headers, data, callback)
     if ch_status(a:channel) !=? 'open'
         return
     endif
@@ -189,7 +185,7 @@ func HttpRequest(channel, path, method, headers, data, callback)
     let reqline = join([method, a:path, 'HTTP/1.1'], ' ')
     let headerlines = []
     for [k, v] in items(a:headers)
-        call add(headerlines, HttpSerializeHeader(k, v))
+        call add(headerlines, s:HttpSerializeHeader(k, v))
     endfor
     let lines = [reqline]
     call extend(lines, headerlines)
@@ -205,12 +201,12 @@ func HttpRequest(channel, path, method, headers, data, callback)
     call ch_sendraw(
     \   s:channel,
     \   request,
-    \   {'callback': {ch, msg -> HttpResponseHandler(ch, msg, function(a:callback))}}
+    \   {'callback': {ch, msg -> s:HttpResponseHandler(ch, msg, function(a:callback))}}
     \)
 endfunc
 
 
-func InitAsmView()
+func s:InitAsmView()
     let oldwin = win_getid()
     vertical rightb split [AsmView]
     setlocal readonly nowrap syn=asm ft=asm
@@ -223,7 +219,7 @@ func InitAsmView()
 endfunc
 
 
-func UpdateAsmView(data)
+func s:UpdateAsmView(data)
     if a:data.status != 200
         echoe "Request failed"
         return
@@ -287,28 +283,28 @@ func UpdateAsmView(data)
 endfunc
 
 
-func KillAsmView()
+func s:KillAsmView()
     exe s:ce_asm_view . "wincmd q"
     let s:ce_asm_view = 0
 endfunc
 
 
-func ExtraCFLAGS(source)
+func s:ExtraCFLAGS(source)
     " TODO find compile_commands.json / snatch from Youcompleteme
     return []
 endfunc
 
 
-func CompileDispatch()
+func s:CompileDispatch()
     let ce_lang = tolower(&filetype)
     if ce_lang == 'cpp'
         let ce_lang = 'c++'
     endif
     let std = g:ce_language_standard[ce_lang]
-    let compiler = HttpSimpleQuotePath(g:ce_enabled_compilers[ce_lang][0])
+    let compiler = s:HttpSimpleQuotePath(g:ce_enabled_compilers[ce_lang][0])
     let opt = g:ce_optlevel[ce_lang]
     let cflags = ['-x' . ce_lang, '-std=' . std, '-O' . opt]
-    call extend(cflags, ExtraCFLAGS(expand('%:p')))
+    call extend(cflags, s:ExtraCFLAGS(expand('%:p')))
     let filters = {
     \    'labels': v:true,
     \    'directives': g:ce_strip_directives ? v:true : v:false,
@@ -324,8 +320,8 @@ func CompileDispatch()
     let source = join(getline('^', '$'), "\n")
     let request = {'compiler': compiler, 'options': options, 'source': source}
 
-    return HttpRequest(
-    \    InitChannel(),
+    return s:HttpRequest(
+    \    s:InitChannel(),
     \    '/api/compiler/' . compiler . '/compile',
     \    'post',
     \    {
@@ -335,17 +331,17 @@ func CompileDispatch()
     \        'accept-encoding': '',
     \    },
     \    json_encode(request),
-    \   'UpdateAsmView'
+    \   's:UpdateAsmView'
     \)
 endfunc
 
 
-func StartServer()
+func s:StartServer()
     let dirname = fnamemodify(g:ce_makefile, ":h")
     let options = {
     \   'cwd': dirname,
-    \   'out_cb': 'LogStdout',
-    \   'err_cb': 'LogStderr',
+    \   'out_cb': function('s:LogStdout'),
+    \   'err_cb': function('s:LogStderr'),
     \}
     let extra_args = ['--host=' . g:ce_host, '--port=' . g:ce_port]
     let s:ce_job = job_start(
@@ -355,13 +351,13 @@ func StartServer()
 endfunc
 
 
-func InitChannel()
+func s:InitChannel()
     if type(s:channel) == type(0)
             \|| ch_status(s:channel) == 'fail'
             \|| ch_status(s:channel) == 'closed'
         let s:channel = ch_open(g:ce_host . ":" . g:ce_port, {'mode': 'raw'})
         if ch_status(s:channel) == 'fail'
-            call StartServer()
+            call s:StartServer()
         endif
     endif
     return s:channel
@@ -370,14 +366,14 @@ endfunc
 
 func ce#toggle_asm_view()
     if (!exists('s:ce_asm_view')) || !s:ce_asm_view
-        let s:ce_asm_view = InitAsmView()
-        call CompileDispatch()
+        let s:ce_asm_view = s:InitAsmView()
+        call s:CompileDispatch()
         " FIXME This is really noisy. Even when doing nothing this fires an
         " HTTP request every couple of seconds, which is going to trash
         " battery and will probably get pretty hairy on large C++ files
-        au CursorHoldI,CursorHold <buffer> call CompileDispatch()
+        au CursorHoldI,CursorHold <buffer> call s:CompileDispatch()
     else
-        call KillAsmView()
-        au! CursorHoldI,CursorHold <buffer> call CompileDispatch()
+        call s:KillAsmView()
+        au! CursorHoldI,CursorHold <buffer> call s:CompileDispatch()
     endif
 endfunc
