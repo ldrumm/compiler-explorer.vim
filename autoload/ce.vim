@@ -237,6 +237,13 @@ func s:SyncBuffers(src_buf, asm_buf, asm_lines, colormap)
     " Actually do the update
     " This is a total hack until I work out how to write into another buffer
     " cleanly
+
+    " Don't write into closed buffers. Things go wrong and random buffers get
+    " overwritten
+    if a:asm_buf ==# ''
+        return
+    endif
+
     let oldwin = bufwinid(bufnr('%'))
     let srcwin = bufwinid(a:src_buf)
     let asmwin = bufwinid(a:asm_buf)
