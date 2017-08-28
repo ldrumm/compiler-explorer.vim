@@ -255,6 +255,7 @@ func s:SyncBuffers(src_buf, asm_buf, asm_lines, colormap)
         endif
     endif
 
+    call clearmatches()
     if g:ce_enable_higlights
     "   map(b:ce_colormatch_ids, matchdelete)
     "   b:ce_colormatch_ids = []
@@ -268,6 +269,8 @@ func s:SyncBuffers(src_buf, asm_buf, asm_lines, colormap)
         call win_gotoid(oldwin)
         return
     endif
+
+    call clearmatches()
     if g:ce_enable_higlights
     "   map(b:ce_colormatch_ids, matchdelete)
     "   b:ce_colormatch_ids = []
@@ -314,6 +317,7 @@ func s:CompileDispatchResponseHandler(data)
         call extend(asm_lines, map(copy(data.stdout), Gettext))
     endif
 
+    let [n_colors, color_ids] = s:GetColors()
     if data.code == 0
         for lineinfo in data['asm']
             if g:ce_enable_higlights
@@ -324,7 +328,6 @@ func s:CompileDispatchResponseHandler(data)
                         let lastsrc = srcline
                         let color_idx += 1
                     endif
-                    let [n_colors, color_ids] = s:GetColors()
                     let [_, colorname] = color_ids[color_idx % n_colors]
                     let colormap['src'][srcline] = colorname
                     let colormap['asm'][asm_line] = colorname
