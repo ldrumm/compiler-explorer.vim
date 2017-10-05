@@ -414,7 +414,7 @@ func s:CompileDispatch()
     \    '/api/compiler/' . compiler . '/compile',
     \    'post',
     \    {
-    \        'host': 'localhost',
+    \        'host': g:ce_host,
     \        'content-type': 'application/json',
     \        'accept': 'application/json',
     \        'accept-encoding': '',
